@@ -1,0 +1,89 @@
+import numpy as np
+import pandas as pd
+import pip
+
+
+
+pip.main(['install','python-craigslist'])
+
+from craigslist import  CraigslistHousing
+from craigslist import  CraigslistJobs
+
+
+CraigslistHousing.show_filters()
+CraigslistJobs.show_filters()
+from   pandas.io.json import json_normalize
+housing=[]
+#Importing all the housing listing at zip 10011
+dfhousing= pd.DataFrame()
+cl_h=CraigslistHousing(site='newyork',filters={'zip_code':'10011'})
+for result in cl_h.get_results(sort_by='newest',geotagged=True):
+        housing.append(result)
+dfhousing= json_normalize(housing)  
+#could use below code for all the listing in New York.
+#search = ZipcodeSearchEngine()
+#pin = search.by_city(city='new york city',returns=0)
+#pindf = json_normalize(pin)
+#pindf=pindf[0]
+#pindic=[]
+#housing=[]
+#pindic=pindf.values.tolist()
+
+#for zip in pindic:    
+#    cl_h=CraigslistHousing(site='newyork',filters={'zip_code':'zip'})
+#    for result in cl_h.get_results(sort_by='newest',geotagged=True):
+#        housing.append(result)
+
+
+#All the Job listing in zip 10011
+jobs=[]
+dfjobs=pd.DataFrame()
+cl_j= CraigslistJobs(site='newyork',filters={'zip_code':'10011'})
+
+for result in cl_j.get_results(sort_by='newest',geotagged=True):
+        jobs.append(result)
+dfjobs= json_normalize(jobs) 
+
+#selecting a Job ID from the dfjobs to lookout the accomodations near it.
+dfjobs
+
+job_id='6568396711'
+geotag='40.738515,-74.003723'
+#Creating a Dataframe which a jobid houseid and all their locations
+final_array=[]
+for i in range(len(dfhousing)):
+    final_array.append((job_id,geotag,dfhousing.iloc[i]['id'],dfhousing.iloc[i]['geotag']))
+test=pd.DataFrame(final_array)
+test.columns=['JobID','JobGeo','houseID','HouseGeo']
+new=pd.DataFrame()
+new=test
+new= test.HouseGeo.apply(pd.Series)
+test['HouseGeo']=new[0].astype(str)+','+new[1].astype(str)
+
+
+import googlemaps
+
+gapi=googlemaps.Client(key=gkey)
+distance=[]
+duration=[]
+len(test)
+#FInlding out distance and duration to all the house ads and the selected Job
+for i in range(0,len(test)):
+    dr=gapi.directions(str(test.iloc[i][1]),str(test.iloc[i][3]), mode='driving',avoid='ferries')
+    distance.append(dr[0]['legs'][0]['distance'])
+    duration.append(dr[0]['legs'][0]['duration'])
+
+
+dfdistance=pd.DataFrame(distance)
+dfduration=pd.DataFrame(duration)
+test.shape
+dfduration.shape
+test['Duration']=dfduration['text']
+test['Distance']=dfdistance['text']
+
+#Finding out top 5 House ads near to the desired job on the bases of distance
+test.sort_values(by=['Duration']).head(5)
+#FInding out top 5 House ads near to the desired job on the bases of travel time
+test.sort_values(by=['Distance']).head(5)
+
+
